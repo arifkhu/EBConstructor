@@ -1,1 +1,38 @@
+def create_graphq3(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 2, True, True, 73049, 10299909, Variable("v_date_dim", "table var", "", []),
+                        ["date_dim"], "SELECT * FROM date_dim")
+        s_2 = Statement(2, 1, 1, 2, True, True, 2880404, 472386256, Variable("v_store_sales", "table var", "", []),
+                        ["store_sales"], "SELECT * FROM store_sales")
+        s_3 = Statement(3, 1, 1, 2, True, True, 18000, 5058000, Variable("v_item", "table var", "", []), ["item"],
+                        "SELECT * FROM item")
+        s_4 = Statement(4, 1, 1, 1, True, False, 89, 5785, Variable("v_t", "table var",
+                                                                    "d_year integer,brand_id integer, brand varchar(50), sum_agg decimal(18,2)",
+                                                                    ["v_date_dim", "v_store_sales", "v_item"]), [""],
+                        "select dt.d_year,i.i_brand_id brand_id, i.i_brand brand,sum(ss_ext_sales_price) sum_agg from :v_date_dim dt, :v_store_sales vs, :v_item i where dt.d_date_sk = vs.ss_sold_date_sk and vs.ss_item_sk = i.i_item_sk and i.i_manufact_id = 128 and dt.d_moy=11 group by dt.d_year,i.i_brand,i.i_brand_id order by dt.d_year,sum_agg desc,brand_id;")
+        s_5 = Statement(5, 1, 1, 1, True, False, 1, 8, Variable("", "", "", ["v_t"]), [""],
+                        "select count(*) from :v_t ;")
 
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        # self.statements[s_6.id] = s_6
+        # self.statements[s_7.id] = s_7
+        # self.statements[s_8.id] = s_8
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 5
