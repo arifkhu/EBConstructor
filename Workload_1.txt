@@ -1,0 +1,1570 @@
+#Workload 1: OLAP Workload contains Realistic Procedure
+##########################
+   
+#Realistic Procedure 1 Only WHILE Loop
+######################################
+
+    def create_graph1(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 2, True, True, 10200, 571,Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)", []), ["item"], "SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var", "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer", []), ["store_sales"], "SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355, Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []), ["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var", "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer", ["sale", "item"]), [], "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_7 = Statement(7, 1, 1, 1, True, False, 27504814, 2392919, Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]), [], "SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer", ["saleDate", "saleItem"]), [], "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_9 = Statement(9, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "WHILE :i < :k DO")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT", ["saleItemDate"]), [], "SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_12 = Statement(12, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        s_13 = Statement(13, 3, 1, 2, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_14 = Statement(14, 3, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_15 = Statement(15, 3, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        # self.control_regions[2] = ControlRegion(2, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 2, 1, "LOOP")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 15
+
+
+
+#Realistic Procedure 2 IF ELSE 1
+################################
+    def create_graph2(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",[]), ["item"],"SELECT TOP 100000 i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var", "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer",[]), ["store_sales"], "SELECT TOP 100000 ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355, Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),["date_dim"], "SELECT TOP 100000 d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF :i < :k THEN")
+        s_7 = Statement(7, 2, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var", "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",["sale", "item"]), [], "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_8 = Statement(8, 2, 1, 1, True, False, 27504814, 2392919, Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]), [],"SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_9 = Statement(9, 2, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer", ["saleDate", "saleItem"]), [], "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT", ["saleItemDate"]), [], "SELECT TOP 10000000 d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_12 = Statement(12, 2, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_13 = Statement(13, 2, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [],"SELECT * FROM :result")
+        s_14 = Statement(14, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_15 = Statement(15, 2, 1, 1, True, True, 0, 0, Variable("", "", "", []), ["dummy"], "select 'Hello' as col from dummy;")
+        s_16 = Statement(16, 2, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [],"SELECT * FROM :result")
+        s_17 = Statement(17, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "BRANCH")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        # self.control_regions[4] = ControlRegion(4, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 17
+    
+
+
+
+#Realistic Procedure 3 IF ELSE 2
+#################################################
+    def create_graph3(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)", []), ["item"],"SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var", "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer", []), ["store_sales"], "SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355, Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []), ["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF :i < :k THEN")
+        s_7 = Statement(7, 2, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var", "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer", ["sale", "item"]), [], "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_8 = Statement(8, 2, 1, 1, True, False, 27504814, 2392919, Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]), [], "SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_9 = Statement(9, 2, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer", ["saleDate", "saleItem"]), [], "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT", ["saleItemDate"]), [], "SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_12 = Statement(12, 2, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_13 = Statement(13, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        # s_15 = Statement(15, 2, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["item"]), [], "SELECT count(*) cnt FROM :item;")
+        s_14 = Statement(14, 2, 1, 1, True, True, 0, 0, Variable("result", "", "", []), ["dummy"], "select 'Hello' as col from dummy;")
+        s_15 = Statement(15, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_16 = Statement(16, 3, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        # self.statements[s_17.id] = s_17
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "BRANCH")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        # self.control_regions[4] = ControlRegion(4, 1, 1, 1, "SEQ")
+        # self.control_regions[5] = ControlRegion(5, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 16
+
+    
+	
+#Realistic Procedure 4 Only IF Condition
+##############################################
+
+    def create_graph4(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",[]), ["item"],"SELECT TOP 1000000 i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var","ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer",[]), ["store_sales"],"SELECT TOP 1000000 ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355,Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),["date_dim"], "SELECT TOP 1000000 d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var","sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",["sale", "item"]), [],"SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_7 = Statement(7, 1, 1, 1, True, False, 27504814, 2392919,Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]),[],"SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer",["saleDate", "saleItem"]), [],"SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_9 = Statement(9, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF i<k THEN")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT",["saleItemDate"]), [],"SELECT TOP 100000000 d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_12 = Statement(12, 2, 1, 1, True, False, 1, 8,Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [],"SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_13 = Statement(13, 2, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        s_14 = Statement(14, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "BRANCH")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 8
+
+    
+
+#Realistic Procedure 5 WHILE Loop Inside IF
+##############################################
+
+    def create_graph5(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571,Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)", []), ["item"], "SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var", "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer", []), ["store_sales"], "SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355, Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []), ["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["k"]), [], "IF :k = 2 THEN")
+        s_7 = Statement(7, 2, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var", "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer", ["sale", "item"]), [], "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item WHERE ss_item_sk = i_item_sk")
+        s_8 = Statement(8, 2, 1, 1, True, False, 27504814, 2392919, Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]), [], "SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date WHERE ss_sold_date_sk = d_date_sk")
+        s_9 = Statement(9, 2, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer", ["saleDate", "saleItem"]), [], "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_10 = Statement(10, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i"]), [], "WHILE :i < 2 DO")
+        s_11 = Statement(11, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT", ["saleItemDate"]), [], "SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_12 = Statement(12, 2, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_13 = Statement(13, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        s_14 = Statement(14, 2, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_15 = Statement(15, 2, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_16 = Statement(16, 2, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_17 = Statement(17, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        # s_18 = Statement(18, 2, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        # s_19 = Statement(19, 2, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        s_17 = Statement(17, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+        # self.statements[s_18.id] = s_18
+        # self.statements[s_19.id] = s_19
+        # self.statements[s_20.id] = s_20
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "BRANCH")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        # self.control_regions[4] = ControlRegion(4, 1, 2, 1, "LOOP")
+        # self.control_regions[5] = ControlRegion(5, 1, 1, 1, "SEQ")
+        # self.control_regions[6] = ControlRegion(6, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 17
+
+    
+
+#Realistic Procedure 6 IF condition inside WHILE Loop
+#######################################################
+
+    def create_graph6(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)", []), ["item"], "SELECT TOP 10000000 i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var", "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer", []), ["store_sales"], "SELECT TOP 10000000 ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355, Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []), ["date_dim"], "SELECT TOP 10000000 d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var", "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer", ["sale", "item"]), [], "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_7 = Statement(7, 1, 1, 1, True, False, 27504814, 2392919, Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]), [], "SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer", ["saleDate", "saleItem"]), [], "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_9 = Statement(9, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "WHILE :i < :k DO")
+        s_10 = Statement(10, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["k"]), [], "IF :k = 2 THEN")
+        s_11 = Statement(11, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT", ["saleItemDate"]), [], "SELECT TOP 1000000000 d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_12 = Statement(12, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_13 = Statement(13, 2, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_14 = Statement(14, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        s_15 = Statement(15, 3, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_16 = Statement(16, 3, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_17 = Statement(17, 3, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 2, 1, "LOOP")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "BRANCH")
+        # self.control_regions[4] = ControlRegion(4, 1, 2, 1, "SEQ")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 17
+
+
+
+
+#Realistic Procedure 7  Separated WHILE Loop and IF ELSE Condition
+####################################################################
+	
+    def create_graph7(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",[]), ["item"],"SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var","ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer",[]), ["store_sales"],"SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355,Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var","sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",["sale", "item"]), [],"SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_7 = Statement(7, 1, 1, 1, True, False, 27504814, 2392919,Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]),[],"SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer",["saleDate", "saleItem"]), [],"SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_9 = Statement(9, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "WHILE :i < :k DO")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT",["saleItemDate"]), [],"SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_12 = Statement(12, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        s_13 = Statement(13, 3, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF :i = 2 THEN")
+        s_14 = Statement(14, 3, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"],"SELECT c_customer_sk FROM customer")
+        s_15 = Statement(15, 3, 1, 1, True, False, 1, 8,Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [],"SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_16 = Statement(16, 3, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_17 = Statement(17, 3, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        # s_18 = Statement(18, 5, 1, 3, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["item"]), [], "SELECT count(*) cnt FROM item;")
+        # s_19 = Statement(19, 5, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        s_17 = Statement(17, 3, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+        # self.statements[s_18.id] = s_18
+        # self.statements[s_19.id] = s_19
+        # self.statements[s_20.id] = s_20
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "LOOP")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "BRANCH")
+        # self.control_regions[4] = ControlRegion(4, 1, 1, 1, "SEQ")
+        # self.control_regions[5] = ControlRegion(5, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 17
+
+
+    def create_graph7a(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",[]), ["item"],"SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var","ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer",[]), ["store_sales"],"SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355,Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var","sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",["sale", "item"]), [],"SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_7 = Statement(7, 1, 1, 1, True, False, 27504814, 2392919,Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]),[],"SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer",["saleDate", "saleItem"]), [],"SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_9 = Statement(9, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "WHILE :i < :k DO")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT",["saleItemDate"]), [],"SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_12 = Statement(12, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        # s_13 = Statement(13, 3, 1, 1, True, False, 1, 8, Variable("result1", "table var", "cnt BIGINT", ["aggItems"]), [], "SELECT count(*) cnt FROM :aggItems;")
+        # s_14 = Statement(14, 3, 1, 1, False, False, 0, 0, Variable("", "", "", ["cnt"]), [], "IF :result1 > 2 THEN")
+        s_13 = Statement(13, 3, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"],"SELECT c_customer_sk FROM customer")
+        s_14 = Statement(14, 3, 1, 1, True, False, 1, 8,Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [],"SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        # s_15 = Statement(15, 4, 1, 1, False, False, 0, 0, Variable("", "", "", ["result"]), [], "IF :result > 2 THEN")
+        s_15 = Statement(15, 4, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_17 = Statement(17, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        # s_18 = Statement(18, 4, 1, 1, True, False, 0, 0, Variable("", "", "", ["dummy"]), [],"select 'Hello' as col from dummy;")
+        # # s_19 = Statement(19, 5, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_19 = Statement(19, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        # self.statements[s_16.id] = s_16
+        # self.statements[s_17.id] = s_17
+        # self.statements[s_18.id] = s_18
+        # self.statements[s_19.id] = s_19
+        # self.statements[s_20.id] = s_20
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "LOOP")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        self.control_regions[4] = ControlRegion(4, 1, 1, 1, "BRANCH")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 15
+
+
+    def create_graph7b(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",[]), ["item"],"SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var","ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer",[]), ["store_sales"],"SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355,Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var","sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",["sale", "item"]), [],"SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_7 = Statement(7, 1, 1, 1, True, False, 27504814, 2392919,Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]),[],"SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer",["saleDate", "saleItem"]), [],"SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_9 = Statement(9, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "WHILE :i < :k DO")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT",["saleItemDate"]), [],"SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_12 = Statement(12, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        # s_13 = Statement(13, 3, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF :i = 2 THEN")
+        # s_14 = Statement(14, 4, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"],"SELECT c_customer_sk FROM customer")
+        # s_15 = Statement(15, 4, 1, 1, True, False, 1, 8,Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [],"SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        # s_16 = Statement(16, 4, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_17 = Statement(17, 3, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE;")
+        s_13 = Statement(13, 3, 1, 3, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["item"]), [], "SELECT count(*) cnt FROM item;")
+        s_14 = Statement(14, 3, 1, 3, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_20 = Statement(20, 3, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        # self.statements[s_15.id] = s_15
+        # self.statements[s_16.id] = s_16
+        # self.statements[s_17.id] = s_17
+        # self.statements[s_18.id] = s_18
+        # self.statements[s_19.id] = s_19
+        # self.statements[s_20.id] = s_20
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "LOOP")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "BRANCH")
+        # self.control_regions[4] = ControlRegion(4, 1, 1, 1, "SEQ")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 14
+
+    def create_graph7_(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF i<k THEN")
+        s_4 = Statement(4, 3, 1, 3, True, True, 10200, 571,Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)", []), ["item"], "SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_5 = Statement(5, 3, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var", "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer", []), ["store_sales"], "SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_6 = Statement(6, 3, 1, 2, True, True, 73049, 6355, Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []), ["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_7 = Statement(7, 3, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var", "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer", ["sale", "item"]), [], "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_8 = Statement(8, 3, 1, 1, True, False, 27504814, 2392919, Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]), [], "SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_9 = Statement(9, 3, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer", ["saleDate", "saleItem"]), [], "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_10 = Statement(10, 4, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "WHILE :i < :k DO")
+        s_11 = Statement(11, 4, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var", "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT", ["saleItemDate"]), [], "SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_12 = Statement(12, 4, 1, 1, False, False, 0, 0, Variable("i", "INT", "", ["i"]), [], "i = :i + 1;")
+        s_13 = Statement(13, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        s_14 = Statement(14, 5, 1, 1, True, True, 495490, 1936, Variable("customer", "table var", "c_customer_sk integer", []), ["customer"], "SELECT c_customer_sk FROM customer")
+        s_15 = Statement(15, 5, 1, 1, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_16 = Statement(16, 5, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        s_17 = Statement(17, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE;")
+        s_18 = Statement(18, 6, 1, 3, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["item"]), [], "SELECT count(*) cnt FROM item;")
+        s_19 = Statement(19, 6, 1, 3, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        s_20 = Statement(20, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+        self.statements[s_18.id] = s_18
+        self.statements[s_19.id] = s_19
+        self.statements[s_20.id] = s_20
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "BRANCH")
+        self.control_regions[3] = ControlRegion(3, 1, 2, 1, "SEQ")
+        self.control_regions[4] = ControlRegion(4, 1, 2, 1, "LOOP")
+        self.control_regions[5] = ControlRegion(5, 1, 1, 1, "SEQ")
+        self.control_regions[6] = ControlRegion(6, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 20
+
+    def create_graph12(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571,Variable("item", "table var", "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",[]), ["item"],"SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var","ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer", []), ["store_sales"],"SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF :i < :k THEN")
+        s_6 = Statement(6, 1, 1, 2, True, True, 73049, 6355,Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_7 = Statement(7, 1, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var","sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",["sale", "item"]), [],"SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_8 = Statement(8, 1, 1, 1, True, False, 27504814, 2392919,Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date", ["sale", "date"]),[],"SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_9 = Statement(9, 1, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer",["saleDate", "saleItem"]), [],"SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_10 = Statement(10, 1, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var","d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT",["saleItemDate"]), [],"SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 1, 1, 1, True, True, 495490, 1936,Variable("customer", "table var", "c_customer_sk integer", []), ["customer"],"SELECT c_customer_sk FROM customer")
+        s_12 = Statement(12, 1, 1, 1, True, False, 1, 8,Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [], "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        s_13 = Statement(13, 1, 1, 1, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        # s_14 = Statement(14, 1, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE;")
+        # s_15 = Statement(15, 1, 1, 3, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["item"]), [],"SELECT count(*) cnt FROM item;")
+        # s_16 = Statement(16, 1, 1, 3, True, False, 0, 0, Variable("", "", "", ["result"]), [], "SELECT * FROM :result")
+        s_14 = Statement(14, 1, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        # self.statements[s_15.id] = s_15
+        # self.statements[s_16.id] = s_16
+        # self.statements[s_17.id] = s_17
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        # self.control_regions[2] = ControlRegion(2, 1, 1, 1, "SEQ")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        # self.control_regions[4] = ControlRegion(4, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 14
+
+    # IF ELSE with common Exit
+    def create_graph30(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("i", "INT", "0", []), [], "DECLARE i INT := 0;")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("k", "INT", "2", []), [], "DECLARE k INT := 2;")
+        s_3 = Statement(3, 1, 1, 3, True, True, 10200, 571, Variable("item", "table var",
+                                                                     "i_item_desc varchar(200), i_item_sk integer, i_color char(20)",
+                                                                     []), ["item"],
+                        "SELECT i_item_desc, i_item_sk, i_color FROM item WHERE i_color = 'red'")
+        s_4 = Statement(4, 1, 1, 2, True, True, 28800991, 4608159, Variable("sale", "table var",
+                                                                            "ss_item_sk integer, ss_sold_date_sk integer, ss_customer_sk integer, ss_quantity integer",
+                                                                            []), ["store_sales"],
+                        "SELECT ss_item_sk, ss_sold_date_sk, ss_customer_sk, ss_quantity FROM store_sales")
+        s_5 = Statement(5, 1, 1, 2, True, True, 73049, 6355,
+                        Variable("date", "table var", "d_year integer, d_date date, d_date_sk integer", []),
+                        ["date_dim"], "SELECT d_year, d_date, d_date_sk FROM date_dim")
+        s_6 = Statement(6, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["i", "k"]), [], "IF :i < :k THEN")
+        s_7 = Statement(7, 2, 1, 1, True, False, 645811, 232492, Variable("saleItem", "table var",
+                                                                          "sk1 integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer",
+                                                                          ["sale", "item"]), [],
+                        "SELECT ss_item_sk sk1, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity FROM :sale, :item  WHERE ss_item_sk = i_item_sk")
+        s_8 = Statement(8, 2, 1, 1, True, False, 27504814, 2392919,
+                        Variable("saleDate", "table var", "sk2 integer, d_year integer, d_date date",
+                                 ["sale", "date"]), [],
+                        "SELECT ss_item_sk sk2, d_year, d_date FROM :sale, :date  WHERE ss_sold_date_sk = d_date_sk")
+        s_9 = Statement(9, 2, 1, 1, True, False, 219080516, 47709917, Variable("saleItemDate", "table var",
+                                                                               "d_year integer, i_item_desc varchar(200), i_item_sk integer, d_date date, ss_customer_sk integer, ss_quantity integer",
+                                                                               ["saleDate", "saleItem"]), [],
+                        "SELECT d_year, i_item_desc, i_item_sk, d_date, ss_customer_sk, ss_quantity FROM :saleDate, :saleItem WHERE sk1 = sk2")
+        s_10 = Statement(10, 2, 1, 1, True, False, 178861374, 40348611, Variable("aggItems", "table var",
+                                                                                 "d_year integer, i_item_desc varchar(200), i_item_sk integer, ss_customer_sk integer, ss_quantity integer, d_date date, cnt BIGINT",
+                                                                                 ["saleItemDate"]), [],
+                         "SELECT d_year, i_item_desc, i_item_sk, ss_customer_sk, ss_quantity, d_date, COUNT(*) cnt FROM :saleItemDate GROUP BY ss_customer_sk, ss_quantity, i_item_desc, i_item_sk, d_date, d_year")
+        s_11 = Statement(11, 2, 1, 1, True, True, 495490, 1936,
+                         Variable("customer", "table var", "c_customer_sk integer", []), ["customer"],
+                         "SELECT c_customer_sk FROM customer")
+        s_12 = Statement(12, 2, 1, 1, True, False, 1, 8,
+                         Variable("result", "table var", "cnt BIGINT", ["aggItems", "customer"]), [],
+                         "SELECT count(*) cnt FROM :aggItems, :customer WHERE ss_customer_sk = c_customer_sk AND ss_quantity < 100")
+        # s_13 = Statement(13, 3, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE;")
+        # s_14 = Statement(14, 3, 1, 3, True, False, 1, 8, Variable("result", "table var", "cnt BIGINT", ["item"]),
+        #                  [], "SELECT count(*) cnt FROM item;")
+        s_13 = Statement(13, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_14 = Statement(14, 3, 1, 3, True, False, 0, 0, Variable("", "", "", ["result"]), [],
+                         "SELECT * FROM :result")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        # self.statements[s_15.id] = s_15
+        # self.statements[s_16.id] = s_16
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "SEQ")
+        # self.control_regions[3] = ControlRegion(3, 1, 1, 1, "BRANCH")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 14
+
+    def create_graphrw1(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 1, False, False, 0, 0, Variable("V_PRODHIER", "NVARCHAR", " ", []), [], "DECLARE V_PRODHIER NVARCHAR(18):='';")
+        s_2 = Statement(2, 1, 1, 1, False, False, 0, 0, Variable("V_FABRIC_ID", "NVARCHAR", " ", []), [], "DECLARE V_FABRIC_ID NVARCHAR(13):='';")
+        s_3 = Statement(3, 1, 1, 1, False, False, 0, 0, Variable("V_STYLE_ID", "NVARCHAR", " ", []), [], "DECLARE V_STYLE_ID NVARCHAR(48):='';")
+        s_4 = Statement(4, 1, 1, 1, False, False, 0, 0, Variable("V_NRF_CODE", "NVARCHAR", " ", []), [], "DECLARE V_NRF_CODE NVARCHAR(5):='';")
+        s_5 = Statement(5, 1, 1, 1, False, False, 0, 0, Variable("V_PRODH2", "NVARCHAR", "110", []), [], "DECLARE V_PRODH2 NVARCHAR(3):='110';")
+        s_6 = Statement(6, 1, 1, 1, False, False, 0, 0, Variable("V_PRODH3", "NVARCHAR", " ", []), [], "DECLARE V_PRODH3 NVARCHAR(6):='';")
+        s_7 = Statement(7, 1, 1, 1, False, False, 0, 0, Variable("V_PRODH4", "NVARCHAR", " ", []), [], "DECLARE V_PRODH4 NVARCHAR(11):='';")
+        s_8 = Statement(8, 1, 1, 1, False, False, 0, 0, Variable("V_PRODH5", "NVARCHAR", " ", []), [], "DECLARE V_PRODH5 NVARCHAR(18):='';")
+        s_9 = Statement(9, 1, 1, 1, False, False, 0, 0, Variable("V_SEASONS", "NVARCHAR", "S12", []), [], "DECLARE V_SEASONS NVARCHAR(100):='S12';")
+        s_10 = Statement(10, 1, 1, 1, False, False, 0, 0, Variable("V_COLLECTIONS", "NVARCHAR", "A1", []), [], "DECLARE V_COLLECTIONS NVARCHAR(100):='A1';")
+        s_11 = Statement(11, 1, 1, 1, False, False, 0, 0, Variable("V_THEMES", "NVARCHAR", "01", []), [], "DECLARE V_THEMES NVARCHAR(100):='01';")
+        s_12 = Statement(12, 1, 1, 1, False, False, 0, 0, Variable("V_rdds", "NVARCHAR", " ", []), [], "DECLARE V_rdds NVARCHAR(100):='';")
+        s_13 = Statement(13, 1, 1, 1, False, False, 0, 0, Variable("V_PROD_GROUPS", "NVARCHAR", " ", []), [], "DECLARE V_PROD_GROUPS NVARCHAR(100):='';")
+        s_14 = Statement(14, 1, 1, 1, False, False, 0, 0, Variable("V_STATUS_FLAGS", "NVARCHAR", "00001", []), [], "DECLARE V_STATUS_FLAGS NVARCHAR(100):='00001';")
+        s_15 = Statement(15, 1, 1, 1, False, False, 0, 0, Variable("V_WITHDRAWN_FLAGS", "NVARCHAR", " ", []), [], "DECLARE V_WITHDRAWN_FLAGS NVARCHAR(100):='';")
+        s_16 = Statement(16, 1, 1, 1, False, False, 0, 0, Variable("V_brandings", "NVARCHAR", " ", []), [], "DECLARE V_brandings NVARCHAR(100):='';")
+        s_17 = Statement(17, 1, 1, 1, False, False, 0, 0, Variable("V_fabrications", "NVARCHAR", " ", []), [], "DECLARE V_fabrications NVARCHAR(100):='';")
+        s_18 = Statement(18, 1, 1, 1, False, False, 0, 0, Variable("V_GLOBAL_BUYS", "NVARCHAR", " ", []), [], "DECLARE V_GLOBAL_BUYS NVARCHAR(100):='';")
+        s_19 = Statement(19, 1, 1, 1, False, False, 0, 0, Variable("V_SEARCH_STR", "NVARCHAR", " ", []), [], "DECLARE V_SEARCH_STR NVARCHAR(100):='';")
+        s_20 = Statement(20, 1, 1, 1, False, False, 0, 0, Variable("LIMIT_C", "INTEGER", "222", []), [], "DECLARE LIMIT_C INTEGER:='222';")
+        s_21 = Statement(21, 1, 1, 1, False, False, 0, 0, Variable("OFFSET_C", "INTEGER", "0", []), [], "DECLARE OFFSET_C INTEGER:='0';")
+        s_22 = Statement(22, 1, 1, 1, False, False, 0, 0, Variable("SORT_FIELD", "NCHAR", "MATERIAL", []), [], "DECLARE SORT_FIELD NCHAR(10):='MATERIAL';")
+        s_23 = Statement(23, 1, 1, 1, False, False, 0, 0, Variable("V_SORT_ORDER", "NCHAR", "D", []), [], "DECLARE V_SORT_ORDER NCHAR(1):='D';")
+        s_24 = Statement(24, 1, 1, 1, False, False, 0, 0, Variable("V_KUKLAS", "NVARCHAR", " ", []), [], "DECLARE V_KUKLAS NVARCHAR(100):='';")
+        s_25 = Statement(25, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["V_PRODH5"]), [], "IF V_PRODH5 <> '' THEN")
+        s_26 = Statement(26, 2, 1, 1, True, True, 0, 0, Variable("", "", "", ["V_PRODH5"]), ["DUMMY"], "SELECT :V_PRODH5 INTO V_PRODHIER FROM DUMMY;")
+        s_27 = Statement(27, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_28 = Statement(28, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["V_PRODH4"]), [],"IF V_PRODH4 <> '' THEN")
+        s_29 = Statement(29, 2, 1, 1, True, True, 0, 0, Variable("", "", "", ["V_PRODH4"]), ["DUMMY"],"SELECT CONCAT(:V_PRODH4, '%') INTO V_PRODHIER FROM DUMMY;")
+        s_30 = Statement(30, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_31 = Statement(31, 2, 1, 1, False, False, 0, 0, Variable("", "", "", ["V_PRODH3"]), [],"IF V_PRODH3 <> '' THEN")
+        s_32 = Statement(32, 2, 1, 1, True, True, 0, 0, Variable("", "", "", ["V_PRODH3"]), ["DUMMY"],"SELECT CONCAT (:V_PRODH3, '%') INTO V_PRODHIER FROM DUMMY;")
+        s_33 = Statement(33, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_34 = Statement(34, 2, 1, 1, True, True, 0, 0, Variable("", "", "", ["V_PRODH2"]), ["DUMMY"],"SELECT CONCAT (:V_PRODH2, '%') INTO V_PRODHIER FROM DUMMY;")
+        s_35 = Statement(35, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_36 = Statement(36, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_37 = Statement(37, 2, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_38 = Statement(38, 3, 1, 1, False, False, 0, 0, Variable("TT_SEASONS", "table var", "", [":V_SEASONS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_SEASONS,',',:TT_SEASONS);")
+        s_39 = Statement(39, 3, 1, 1, False, False, 0, 0, Variable("TT_COLLECTIONS", "table var", "", ["V_COLLECTIONS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_COLLECTIONS,',',:TT_COLLECTIONS);")
+        s_40 = Statement(40, 3, 1, 1, False, False, 0, 0, Variable("tt_THEMES", "table var", "", []), ["V_THEMES"], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_THEMES,',',:tt_THEMES);")
+        s_41 = Statement(41, 3, 1, 1, False, False, 0, 0, Variable("TT_PROD_GROUPS", "table var", "", ["V_PROD_GROUPS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_PROD_GROUPS,',',:TT_PROD_GROUPS);")
+        s_42 = Statement(42, 3, 1, 1, False, False, 0, 0, Variable("TT_STATUS_FLAGS", "table var", "", ["V_STATUS_FLAGS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_FLAGS\"(:V_STATUS_FLAGS,',',:TT_STATUS_FLAGS);")
+        s_43 = Statement(43, 3, 1, 1, False, False, 0, 0, Variable("TT_WITHDRAWN_FLAGS", "table var", "", ["V_WITHDRAWN_FLAGS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_FLAGS\"(:V_WITHDRAWN_FLAGS,',',:TT_WITHDRAWN_FLAGS);")
+        s_44 = Statement(44, 3, 1, 1, False, False, 0, 0, Variable("tt_globalbuys", "table var", "", ["V_GLOBAL_BUYS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_GLOBAL_BUYS,',',:tt_globalbuys);")
+        s_45 = Statement(45, 3, 1, 1, False, False, 0, 0, Variable("tt_rdds", "table var", "", ["V_rdds"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STR_RDDS\"(:V_rdds,',',:tt_rdds);")
+        s_46 = Statement(46, 3, 1, 1, False, False, 0, 0, Variable("TT_fabrications", "table var", "", ["V_rdds"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_fabrications,',',:TT_fabrications);")
+        s_47 = Statement(47, 3, 1, 1, False, False, 0, 0, Variable("TT_brandings", "table var", "", ["V_brandings"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_brandings,',',:TT_brandings);")
+        s_48 = Statement(48, 3, 1, 1, False, False, 0, 0, Variable("tt_KUKLAS", "table var", "", ["V_KUKLAS"]), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_KUKLAS,',',:tt_KUKLAS);")
+        s_49 = Statement(49, 4, 1, 1, False, False, 0, 0, Variable("", "table var", "", ["V_rdds"]), [], "IF :V_rdds <> '' THEN")
+        s_50 = Statement(50, 4, 1, 1, False, False, 0, 0, Variable("", "table var", "", ["V_SEARCH_STR"]), [], "IF :V_SEARCH_STR <> '' THEN")
+        s_51 = Statement(51, 4, 1, 1, True, True, 0, 0, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["tt_rdds","V_FABRIC_ID","V_STYLE_ID","V_NRF_CODE","V_PROD_GROUPS","TT_PROD_GROUPS","V_STATUS_FLAGS","TT_STATUS_FLAGS","V_WITHDRAWN_FLAGS","TT_WITHDRAWN_FLAGS","V_GLOBAL_BUYS","tt_globalbuys","V_brandings","TT_brandings","V_fabrications","TT_fabrications","V_PRODHIER","V_SEARCH_STR","V_KUKLAS","tt_KUKLAS","V_SEASONS","TT_SEASONS","V_COLLECTIONS","TT_COLLECTIONS","V_THEMES","tt_THEMES"]), ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\"","\"_SYS_BIC\".\"CA_CAT_REG_SALES_TABLE\""],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM \"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\" AS a join :tt_rdds AS b on (a.rdds like b.PARSED_VALUE) WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (contains ((wrkst,zzmainrm,matnr), :V_SEARCH_STR, weight(1,0.7,0.7))) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_52 = Statement(52, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_53 = Statement(53, 4, 1, 1, True, True, 0, 0, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["tt_rdds","V_FABRIC_ID","V_STYLE_ID","V_NRF_CODE","V_PROD_GROUPS","TT_PROD_GROUPS","V_STATUS_FLAGS","TT_STATUS_FLAGS","V_WITHDRAWN_FLAGS","TT_WITHDRAWN_FLAGS","V_GLOBAL_BUYS","tt_globalbuys","V_brandings","TT_brandings","V_fabrications","TT_fabrications","V_PRODHIER","V_SEARCH_STR","V_KUKLAS","tt_KUKLAS","V_SEASONS","TT_SEASONS","V_COLLECTIONS","TT_COLLECTIONS","V_THEMES","tt_THEMES"]), ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\"","\"_SYS_BIC\".\"CA_CAT_REG_SALES_TABLE\""],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM \"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\" AS a join :tt_rdds AS b on (a.rdds like b.PARSED_VALUE) WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_54 = Statement(54, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_55 = Statement(55, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_56 = Statement(56, 4, 1, 1, False, False, 0, 0, Variable("", "", "", ["V_SEARCH_STR"]), [], "IF :V_rdds <> '' THEN")
+        s_57 = Statement(57, 4, 1, 1, True, True, 0, 0, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["tt_rdds","V_FABRIC_ID","V_STYLE_ID","V_NRF_CODE","V_PROD_GROUPS","TT_PROD_GROUPS","V_STATUS_FLAGS","TT_STATUS_FLAGS","V_WITHDRAWN_FLAGS","TT_WITHDRAWN_FLAGS","V_GLOBAL_BUYS","tt_globalbuys","V_brandings","TT_brandings","V_fabrications","TT_fabrications","V_PRODHIER","V_SEARCH_STR","V_KUKLAS","tt_KUKLAS","V_SEASONS","TT_SEASONS","V_COLLECTIONS","TT_COLLECTIONS","V_THEMES","tt_THEMES"]), ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\"", "\"_SYS_BIC\".\"CA_CAT_REG_SALES_TABLE\""],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM \"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\" WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (contains ((wrkst,zzmainrm,matnr), :V_SEARCH_STR, weight(1,0.7,0.7))) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_58 = Statement(58, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_59 = Statement(59, 4, 1, 1, True, True, 0, 0, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["tt_rdds","V_FABRIC_ID","V_STYLE_ID","V_NRF_CODE","V_PROD_GROUPS","TT_PROD_GROUPS","V_STATUS_FLAGS","TT_STATUS_FLAGS","V_WITHDRAWN_FLAGS","TT_WITHDRAWN_FLAGS","V_GLOBAL_BUYS","tt_globalbuys","V_brandings","TT_brandings","V_fabrications","TT_fabrications","V_PRODHIER","V_SEARCH_STR","V_KUKLAS","tt_KUKLAS","V_SEASONS","TT_SEASONS","V_COLLECTIONS","TT_COLLECTIONS","V_THEMES","tt_THEMES"]), ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\"", "\"_SYS_BIC\".\"CA_CAT_REG_SALES_TABLE\""],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM \"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\" WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_60 = Statement(60, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_61 = Statement(61, 4, 1, 1, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_62 = Statement(62, 5, 1, 1, True, True, 0, 0,
+                        Variable("t_result", "table var", "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), FABRIC_ID NVARCHAR(12), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), swatch_image NVARCHAR(18), NRF_CODE NVARCHAR(5),REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), zzgroup NVARCHAR(5), PRODH2 NVARCHAR(3),PRODH3 NVARCHAR(6),PRODH4 NVARCHAR(11),PRODH5 NVARCHAR(18)", ["t_table"]),
+                        ["SAPAFS\".\"ZNRF_CHAR_EX"],
+                        "SELECT MATERIAL, MATERIAL_NAME, DESCRIPTION, WITHDRAWN_FLAG, STATUS_FLAG, LOOKBOOK_FLAG, STYLE_ID, STYLE_NAME, CAD_IMAGE, MAIN_RM || '_' || FABR_CONT_COD as FABRIC_ID, MAIN_RM, FABR_CONT_COD, CASE WHEN (right(NRF_CODE,1) in ('0','1','2','3','4','5','6','7','8','9') or right(NRF_CODE,1) in (SELECT nrf_char_exc FROM \"SAPAFS\".\"ZNRF_CHAR_EX\")) THEN (NRF_CODE) ELSE (MATERIAL) END AS swatch_image, NRF_CODE,REPO_COLOUR, MARK_COLOUR, zzgroup, left(PRODH5,3) AS PRODH2, left(PRODH5,6) AS PRODH3,left(PRODH5,11) AS PRODH4, PRODH5 FROM :t_table ORDER BY MATERIAL;")
+        s_63 = Statement(63, 5, 1, 1, True, True, 0, 0,
+                        Variable("result", "table var",
+                                 "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), FABRIC_ID NVARCHAR(12), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), swatch_image NVARCHAR(18), NRF_CODE NVARCHAR(5),REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), zzgroup NVARCHAR(5), PRODH2 NVARCHAR(3),PRODH3 NVARCHAR(6),PRODH4 NVARCHAR(11),PRODH5 NVARCHAR(18)",
+                                 ["t_result","SORT_FIELD","LIMIT_C","OFFSET_C"]),
+                        ["SAPAFS.zmatmas_attrib"],
+                        "SELECT MATERIAL, MATERIAL_NAME, DESCRIPTION, WITHDRAWN_FLAG,STATUS_FLAG, b.zvalue as LOOKBOOK_FLAG, STYLE_ID, STYLE_NAME, CAD_IMAGE, FABRIC_ID, MAIN_RM, FABR_CONT_COD, min(swatch_image) AS swatch_image, NRF_CODE, REPO_COLOUR, MARK_COLOUR, zzgroup, PRODH2, PRODH3, PRODH4, PRODH5 FROM :t_result as a left outer join (SELECT zkey, zvalue from SAPAFS.zmatmas_attrib WHERE zattribute = 'ZZRMCHAR') AS b on a.LOOKBOOK_FLAG = b.zkey GROUP BY MATERIAL, MATERIAL_NAME, DESCRIPTION, WITHDRAWN_FLAG, STATUS_FLAG, b.zvalue, STYLE_ID, STYLE_NAME,CAD_IMAGE, FABRIC_ID, MAIN_RM, FABR_CONT_COD, NRF_CODE,REPO_COLOUR, MARK_COLOUR, zzgroup, PRODH2, PRODH3, PRODH4, PRODH5 ORDER BY CASE WHEN :SORT_FIELD = 'A' THEN CASE :SORT_FIELD WHEN 'MATERIAL' THEN MATERIAL WHEN 'STATUS_FLAG' THEN STATUS_FLAG WHEN 'ZZGROUP' THEN ZZGROUP WHEN 'STYLE_NAME' THEN STYLE_NAME WHEN 'FABRIC_ID' THEN FABRIC_ID WHEN 'PRODH5' THEN PRODH5 END END ASC, CASE WHEN :SORT_FIELD = 'D' THEN CASE :SORT_FIELD WHEN 'MATERIAL' THEN MATERIAL WHEN 'STATUS_FLAG' THEN STATUS_FLAG WHEN 'ZZGROUP' THEN ZZGROUP WHEN 'STYLE_NAME' THEN STYLE_NAME WHEN 'FABRIC_ID' THEN FABRIC_ID WHEN 'PRODH5' THEN PRODH5 END END DESC limit :LIMIT_C offset :OFFSET_C;")
+        s_64 = Statement(64, 5, 1, 1, True, False, 1, 8,
+                         Variable("result_count", "table var", "total_count BIGINT", ["t_result"]), [],
+                         "SELECT count(*) as total_count from :t_result")
+        s_65 = Statement(65, 5, 1, 1, True, True, 0, 0,
+                        Variable("COMPOSITION", "table var",
+                                 "FABR_CONT_COD NVARCHAR(5), FAB_TEXT NVARCHAR(30), PROZ NVARCHAR(3)",
+                                 ["result"]),
+                        ["\"_SYS_BIC\".\"AT_DGC_COMPOSITION_TABLE\""],
+                        "SELECT DISTINCT j_3afcc as FABR_CONT_COD, TEXT as FAB_TEXT, \"PROZ\" FROM \"_SYS_BIC\".\"AT_DGC_COMPOSITION_TABLE\" WHERE j_3afcc in (SELECT DISTINCT FABR_CONT_COD FROM :result);")
+        s_66 = Statement(66, 5, 1, 1, True, True, 0, 0,
+                        Variable("RESULT_SEASON", "table var",
+                                 "MATERIAL NVARCHAR(18), SEASONS NVARCHAR(3)",
+                                 ["result"]),
+                        ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\""],
+                        "SELECT DISTINCT \"MATNR\" AS MATERIAL, \"J_3ASEAN\" AS SEASONS FROM \"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\" WHERE \"MATNR\" IN (SELECT DISTINCT \"MATERIAL\" FROM :result) AND wrkst <> '' and (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean LIKE 'S%' OR j_3asean LIKE 'A%');")
+        s_67 = Statement(67, 5, 1, 1, True, True, 0, 0,
+                        Variable("STYLE_SEASONS", "table var",
+                                 "STYLE_ID NVARCHAR(48), STYLE_SEASON NVARCHAR(3)",
+                                 ["result"]),
+                        ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\""],
+                        "SELECT DISTINCT \"WRKST\" AS STYLE_ID, \"J_3ASEAN\" AS STYLE_SEASON FROM \"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\" WHERE \"WRKST\" IN (SELECT DISTINCT \"STYLE_ID\" FROM :RESULT) AND wrkst <> '' and (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean LIKE 'S%' OR j_3asean LIKE 'A%');")
+        s_68 = Statement(68, 5, 1, 1, True, True, 0, 0,
+                        Variable("RESULT_SIZES", "table var",
+                                 "MATERIAL NVARCHAR(18), grid_number NVARCHAR(18), from_date NVARCHAR(8), grid_value NVARCHAR(8), order_by NVARCHAR(4), season NVARCHAR(3), collection NVARCHAR(4)",
+                                 ["result"]),
+                        ["AT_DGC_GRID_SIZES_SEAS_TABLE"],
+                        "SELECT DISTINCT matnr as material, j_3apgnr as grid_number, j_3avdat as from_date, j_3astxt as grid_value, j_3alfnr as order_by, j_3asean as season, _afs_collection as collection FROM AT_DGC_GRID_SIZES_SEAS_TABLE WHERE \"MATNR\" IN (SELECT DISTINCT \"MATERIAL\" FROM :RESULT);")
+        s_69 = Statement(69, 5, 1, 1, True, True, 0, 0,
+                        Variable("GLOBAL_BUY", "table var",
+                                 "MATERIAL NVARCHAR(18), SEASON NVARCHAR(3), COLLECTION NVARCHAR(4), ZZGLOBBUY NVARCHAR(200)",
+                                 ["result"]),
+                        ["AT_DGC_GLOBAL_BUY_TABLE"],
+                        "SELECT DISTINCT \"MATNR\" AS MATERIAL, \"J_3ASEAN\" AS SEASON, \"_AFS_COLLECTION\" AS COLLECTION, \"ZZGLOBBUY\" AS ZZGLOBBUY FROM AT_DGC_GLOBAL_BUY_TABLE WHERE \"MATNR\" IN (SELECT DISTINCT \"MATERIAL\" FROM :RESULT) AND wrkst <> '' and (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean LIKE 'S%' OR j_3asean LIKE 'A%');")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+        self.statements[s_18.id] = s_18
+        self.statements[s_19.id] = s_19
+        self.statements[s_20.id] = s_20
+        self.statements[s_21.id] = s_21
+        self.statements[s_22.id] = s_22
+        self.statements[s_23.id] = s_23
+        self.statements[s_24.id] = s_24
+        self.statements[s_25.id] = s_25
+        self.statements[s_26.id] = s_26
+        self.statements[s_27.id] = s_27
+        self.statements[s_28.id] = s_28
+        self.statements[s_29.id] = s_29
+        self.statements[s_30.id] = s_30
+        self.statements[s_31.id] = s_31
+        self.statements[s_32.id] = s_32
+        self.statements[s_33.id] = s_33
+        self.statements[s_34.id] = s_34
+        self.statements[s_35.id] = s_35
+        self.statements[s_36.id] = s_36
+        self.statements[s_37.id] = s_37
+        self.statements[s_38.id] = s_38
+        self.statements[s_39.id] = s_39
+        self.statements[s_40.id] = s_40
+        self.statements[s_41.id] = s_41
+        self.statements[s_42.id] = s_42
+        self.statements[s_43.id] = s_43
+        self.statements[s_44.id] = s_44
+        self.statements[s_45.id] = s_45
+        self.statements[s_46.id] = s_46
+        self.statements[s_47.id] = s_47
+        self.statements[s_48.id] = s_48
+        self.statements[s_49.id] = s_49
+        self.statements[s_50.id] = s_50
+        self.statements[s_51.id] = s_51
+        self.statements[s_52.id] = s_52
+        self.statements[s_53.id] = s_53
+        self.statements[s_54.id] = s_54
+        self.statements[s_55.id] = s_55
+        self.statements[s_56.id] = s_56
+        self.statements[s_57.id] = s_57
+        self.statements[s_58.id] = s_58
+        self.statements[s_59.id] = s_59
+        self.statements[s_60.id] = s_60
+        self.statements[s_61.id] = s_61
+        self.statements[s_62.id] = s_62
+        self.statements[s_63.id] = s_63
+        self.statements[s_64.id] = s_64
+        self.statements[s_65.id] = s_65
+        self.statements[s_66.id] = s_66
+        self.statements[s_67.id] = s_67
+        self.statements[s_68.id] = s_68
+        self.statements[s_69.id] = s_69
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "BRANCH")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        self.control_regions[4] = ControlRegion(4, 1, 1, 1, "BRANCH")
+        self.control_regions[5] = ControlRegion(4, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 69
+
+    def create_graphrw1f(self):
+        # stid, crid, ebid, fnid, is_declarative, hbt, nr, size, out_var, base_tables, expr
+        s_1 = Statement(1, 1, 1, 2, False, False, 0, 0, Variable("V_PRODHIER", "NVARCHAR", " ", []), [], "DECLARE V_PRODHIER NVARCHAR(18):='';")
+        s_2 = Statement(2, 1, 1, 2, False, False, 0, 0, Variable("V_FABRIC_ID", "NVARCHAR", " ", []), [], "DECLARE V_FABRIC_ID NVARCHAR(13):='';")
+        s_3 = Statement(3, 1, 1, 2, False, False, 0, 0, Variable("V_STYLE_ID", "NVARCHAR", " ", []), [], "DECLARE V_STYLE_ID NVARCHAR(48):='';")
+        s_4 = Statement(4, 1, 1, 2, False, False, 0, 0, Variable("V_NRF_CODE", "NVARCHAR", " ", []), [], "DECLARE V_NRF_CODE NVARCHAR(5):='';")
+        s_5 = Statement(5, 1, 1, 2, False, False, 0, 0, Variable("V_PRODH2", "NVARCHAR", "110", []), [], "DECLARE V_PRODH2 NVARCHAR(3):='110';")
+        s_6 = Statement(6, 1, 1, 2, False, False, 0, 0, Variable("V_PRODH3", "NVARCHAR", " ", []), [], "DECLARE V_PRODH3 NVARCHAR(6):='';")
+        s_7 = Statement(7, 1, 1, 2, False, False, 0, 0, Variable("V_PRODH4", "NVARCHAR", " ", []), [], "DECLARE V_PRODH4 NVARCHAR(11):='';")
+        s_8 = Statement(8, 1, 1, 2, False, False, 0, 0, Variable("V_PRODH5", "NVARCHAR", " ", []), [], "DECLARE V_PRODH5 NVARCHAR(18):='';")
+        s_9 = Statement(9, 1, 1, 2, False, False, 0, 0, Variable("V_SEASONS", "NVARCHAR", "S12", []), [], "DECLARE V_SEASONS NVARCHAR(100):='S12';")
+        s_10 = Statement(10, 1, 1, 2, False, False, 0, 0, Variable("V_COLLECTIONS", "NVARCHAR", "A1", []), [], "DECLARE V_COLLECTIONS NVARCHAR(100):='A1';")
+        s_11 = Statement(11, 1, 1, 2, False, False, 0, 0, Variable("V_THEMES", "NVARCHAR", "01", []), [], "DECLARE V_THEMES NVARCHAR(100):='01';")
+        s_12 = Statement(12, 1, 1, 2, False, False, 0, 0, Variable("V_rdds", "NVARCHAR", " ", []), [], "DECLARE V_rdds NVARCHAR(100):='';")
+        s_13 = Statement(13, 1, 1, 2, False, False, 0, 0, Variable("V_PROD_GROUPS", "NVARCHAR", " ", []), [], "DECLARE V_PROD_GROUPS NVARCHAR(100):='';")
+        s_14 = Statement(14, 1, 1, 2, False, False, 0, 0, Variable("V_STATUS_FLAGS", "NVARCHAR", "00001", []), [], "DECLARE V_STATUS_FLAGS NVARCHAR(100):='00001';")
+        s_15 = Statement(15, 1, 1, 2, False, False, 0, 0, Variable("V_WITHDRAWN_FLAGS", "NVARCHAR", " ", []), [], "DECLARE V_WITHDRAWN_FLAGS NVARCHAR(100):='';")
+        s_16 = Statement(16, 1, 1, 2, False, False, 0, 0, Variable("V_brandings", "NVARCHAR", " ", []), [], "DECLARE V_brandings NVARCHAR(100):='';")
+        s_17 = Statement(17, 1, 1, 2, False, False, 0, 0, Variable("V_fabrications", "NVARCHAR", " ", []), [], "DECLARE V_fabrications NVARCHAR(100):='';")
+        s_18 = Statement(18, 1, 1, 2, False, False, 0, 0, Variable("V_GLOBAL_BUYS", "NVARCHAR", " ", []), [], "DECLARE V_GLOBAL_BUYS NVARCHAR(100):='';")
+        s_19 = Statement(19, 1, 1, 2, False, False, 0, 0, Variable("V_SEARCH_STR", "NVARCHAR", " ", []), [], "DECLARE V_SEARCH_STR NVARCHAR(100):='';")
+        s_20 = Statement(20, 1, 1, 2, False, False, 0, 0, Variable("LIMIT_C", "INTEGER", "222", []), [], "DECLARE LIMIT_C INTEGER:='222';")
+        s_21 = Statement(21, 1, 1, 2, False, False, 0, 0, Variable("OFFSET_C", "INTEGER", "0", []), [], "DECLARE OFFSET_C INTEGER:='0';")
+        s_22 = Statement(22, 1, 1, 2, False, False, 0, 0, Variable("SORT_FIELD", "NCHAR", "MATERIAL", []), [], "DECLARE SORT_FIELD NCHAR(10):='MATERIAL';")
+        s_23 = Statement(23, 1, 1, 2, False, False, 0, 0, Variable("V_SORT_ORDER", "NCHAR", "D", []), [], "DECLARE V_SORT_ORDER NCHAR(1):='D';")
+        s_24 = Statement(24, 1, 1, 2, False, False, 0, 0, Variable("V_KUKLAS", "NVARCHAR", " ", []), [], "DECLARE V_KUKLAS NVARCHAR(100):='';")
+        s_25 = Statement(25, 2, 1, 2, False, False, 0, 0, Variable("", "", "", ["V_PRODH5"]), [], "IF V_PRODH5 <> '' THEN")
+        s_26 = Statement(26, 2, 1, 2, True, False, 0, 0, Variable("", "", "", []), [], "SELECT :V_PRODH5 INTO V_PRODHIER FROM DUMMY;")
+        s_27 = Statement(27, 2, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_28 = Statement(28, 2, 1, 2, False, False, 0, 0, Variable("", "", "", ["V_PRODH4"]), [],"IF V_PRODH4 <> '' THEN")
+        s_29 = Statement(29, 2, 1, 2, True, False, 0, 0, Variable("", "", "", []), [],"SELECT CONCAT(:V_PRODH4, '%') INTO V_PRODHIER FROM DUMMY;")
+        s_30 = Statement(30, 2, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_31 = Statement(31, 2, 1, 2, False, False, 0, 0, Variable("", "", "", ["V_PRODH4"]), [],"IF V_PRODH3 <> '' THEN")
+        s_32 = Statement(32, 2, 1, 2, True, False, 0, 0, Variable("", "", "", []), [],"SELECT CONCAT (:V_PRODH3, '%') INTO V_PRODHIER FROM DUMMY;")
+        s_33 = Statement(33, 2, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "ELSE;")
+        s_34 = Statement(34, 2, 1, 2, True, False, 0, 0, Variable("", "", "", []), [],"SELECT CONCAT (:V_PRODH2, '%') INTO V_PRODHIER FROM DUMMY;")
+        s_35 = Statement(35, 2, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_36 = Statement(36, 2, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_37 = Statement(37, 2, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_38 = Statement(38, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_SEASONS,',',:TT_SEASONS);")
+        s_39 = Statement(39, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_COLLECTIONS,',',:TT_COLLECTIONS);")
+        s_40 = Statement(40, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_THEMES,',',:tt_THEMES);")
+        s_41 = Statement(41, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_PROD_GROUPS,',',:TT_PROD_GROUPS);")
+        s_42 = Statement(42, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_FLAGS\"(:V_STATUS_FLAGS,',',:TT_STATUS_FLAGS);")
+        s_43 = Statement(43, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_FLAGS\"(:V_WITHDRAWN_FLAGS,',',:TT_WITHDRAWN_FLAGS);")
+        s_44 = Statement(44, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_GLOBAL_BUYS,',',:tt_globalbuys);")
+        s_45 = Statement(45, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STR_RDDS\"(:V_rdds,',',:tt_rdds);")
+        s_46 = Statement(46, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_fabrications,',',:TT_fabrications);")
+        s_47 = Statement(47, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_brandings,',',:TT_brandings);")
+        s_48 = Statement(48, 3, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "CALL \"_SYS_BIC\".\"applications.catalogue/GET_TABLE_FROM_STRING\"(:V_KUKLAS,',',:tt_KUKLAS);")
+        s_49 = Statement(49, 4, 1, 2, False, False, 0, 0, Variable("", "", "", ["V_rdds"]), [], "WHILE :V_rdds <> '' THEN")
+        s_50 = Statement(50, 4, 1, 2, False, False, 0, 0, Variable("", "", "", ["V_SEARCH_STR"]), [], "IF :V_SEARCH_STR <> '' THEN")
+        s_51 = Statement(51, 4, 1, 2, True, False, 645811, 232492, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["\"_SYS_BIC\".\"AT_DGC_STYLE_FABRIC_SRCH_TABLE\"","CA_CAT_REG_SALES_TABLE"]), [],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM AT_DGC_STYLE_FABRIC_SRCH_TABLE AS a join :tt_rdds AS b on (a.rdds like b.PARSED_VALUE) WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (contains ((wrkst,zzmainrm,matnr), :V_SEARCH_STR, weight(1,0.7,0.7))) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_52 = Statement(52, 4, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_53 = Statement(53, 4, 1, 2, True, False, 645811, 232492, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["AT_DGC_STYLE_FABRIC_SRCH_TABLE","CA_CAT_REG_SALES_TABLE"]), [],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM AT_DGC_STYLE_FABRIC_SRCH_TABLE AS a join :tt_rdds AS b on (a.rdds like b.PARSED_VALUE) WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_54 = Statement(54, 4, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_55 = Statement(55, 4, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_56 = Statement(56, 4, 1, 2, False, False, 0, 0, Variable("", "", "", ["V_SEARCH_STR"]), [], "IF :V_rdds <> '' THEN")
+        s_57 = Statement(57, 4, 1, 2, True, False, 645811, 232492, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["AT_DGC_STYLE_FABRIC_SRCH_TABLE", "CA_CAT_REG_SALES_TABLE"]), [],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM AT_DGC_STYLE_FABRIC_SRCH_TABLE WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEME)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (contains ((wrkst,zzmainrm,matnr), :V_SEARCH_STR, weight(1,0.7,0.7))) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_58 = Statement(58, 4, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "ELSE")
+        s_59 = Statement(59, 4, 1, 2, True, False, 645811, 232492, Variable("t_table", "table var",
+                                                                          "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), NRF_CODE NVARCHAR(5), REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), ZZGROUP NVARCHAR(5), PRODH5 NVARCHAR(18)",
+                                                                          ["AT_DGC_STYLE_FABRIC_SRCH_TABLE", "CA_CAT_REG_SALES_TABLE"]), [],
+                        "SELECT DISTINCT matnr AS MATERIAL, maktx AS MATERIAL_NAME, zzmarkdesc AS DESCRIPTION, zzdiscontinued AS WITHDRAWN_FLAG, zzstatus AS STATUS_FLAG, zzrmchar AS LOOKBOOK_FLAG, wrkst AS STYLE_ID, wrkst AS STYLE_NAME, wrkst AS CAD_IMAGE, zzmainrm AS MAIN_RM, j_3afcc AS FABR_CONT_COD, zzcol_nrf AS NRF_CODE, zzcol_reporting AS REPO_COLOUR, zzcol_marketing AS MARK_COLOUR, zzgroup AS ZZGROUP, prdha AS PRODH5 FROM AT_DGC_STYLE_FABRIC_SRCH_TABLE WHERE wrkst <> '' AND loevm_ko = '' AND (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean like 'S%' OR j_3asean like 'A%') AND prdha like :V_PRODHIER AND (:V_FABRIC_ID = '' or fabric_id = :V_FABRIC_ID) AND (:V_STYLE_ID = '' or wrkst = :V_STYLE_ID) AND (:V_NRF_CODE = '' or zzcol_nrf = :V_NRF_CODE) AND (:V_SEASONS = '' or j_3asean in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' OR _afs_collection in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' OR \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEME)) AND (:V_PROD_GROUPS = '' OR zzgroup in (SELECT PARSED_VALUE FROM :TT_PROD_GROUPS)) AND (:V_STATUS_FLAGS = '' OR zzstatus in (SELECT PARSED_VALUE FROM :TT_STATUS_FLAGS)) AND (:V_WITHDRAWN_FLAGS = '' OR zzdiscontinued in (SELECT PARSED_VALUE FROM :TT_WITHDRAWN_FLAGS)) AND (:V_GLOBAL_BUYS = '' or zzglobbuy in (SELECT PARSED_VALUE FROM :tt_globalbuys)) AND (:V_brandings = '' or zzprod_shape in (SELECT PARSED_VALUE FROM :TT_brandings)) AND (:V_fabrications = '' or zzfabrication in (SELECT PARSED_VALUE FROM :TT_fabrications)) AND (:V_KUKLAS = '' or matnr in (SELECT matnr from CA_CAT_REG_SALES_TABLE WHERE KUKLA in (SELECT PARSED_VALUE FROM :tt_KUKLAS) AND (:V_SEASONS = '' or \"J_3ASEAN\" in (SELECT PARSED_VALUE FROM :TT_SEASONS)) AND (:V_COLLECTIONS = '' or \"_AFS_COLLECTION\" in (SELECT PARSED_VALUE FROM :TT_COLLECTIONS)) AND (:V_THEMES = '' or \"_AFS_THEME\" in (SELECT PARSED_VALUE FROM :tt_THEMES))));")
+        s_60 = Statement(60, 4, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "END IF;")
+        s_61 = Statement(61, 4, 1, 2, False, False, 0, 0, Variable("", "", "", []), [], "END WHILE;")
+        s_62 = Statement(62, 5, 1, 1, True, False, 27504814, 2392919,
+                        Variable("t_result", "table var", "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), FABRIC_ID NVARCHAR(12), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), swatch_image NVARCHAR(18), NRF_CODE NVARCHAR(5),REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), zzgroup NVARCHAR(5), PRODH2 NVARCHAR(3),PRODH3 NVARCHAR(6),PRODH4 NVARCHAR(11),PRODH5 NVARCHAR(18)", ["t_table"]),
+                        [],
+                        "SELECT MATERIAL, MATERIAL_NAME, DESCRIPTION, WITHDRAWN_FLAG, STATUS_FLAG, LOOKBOOK_FLAG, STYLE_ID, STYLE_NAME, CAD_IMAGE, MAIN_RM || '_' || FABR_CONT_COD as FABRIC_ID, MAIN_RM, FABR_CONT_COD, CASE WHEN (right(NRF_CODE,1) in ('0','1','2','3','4','5','6','7','8','9') or right(NRF_CODE,1) in (SELECT nrf_char_exc FROM \"SAPAFS\".\"ZNRF_CHAR_EX\")) THEN (NRF_CODE) ELSE (MATERIAL) END AS swatch_image, NRF_CODE,REPO_COLOUR, MARK_COLOUR, zzgroup, left(PRODH5,3) AS PRODH2, left(PRODH5,6) AS PRODH3,left(PRODH5,11) AS PRODH4, PRODH5 FROM :t_table ORDER BY MATERIAL;")
+        s_63 = Statement(63, 5, 1, 1, True, False, 27504814, 2392919,
+                        Variable("result", "table var",
+                                 "MATERIAL NVARCHAR(18), MATERIAL_NAME NVARCHAR(40), DESCRIPTION NVARCHAR(60), WITHDRAWN_FLAG NVARCHAR(5), STATUS_FLAG NVARCHAR(5), LOOKBOOK_FLAG NVARCHAR(5), STYLE_ID NVARCHAR(48), STYLE_NAME NVARCHAR(48), CAD_IMAGE NVARCHAR(48), FABRIC_ID NVARCHAR(12), MAIN_RM NVARCHAR(7), FABR_CONT_COD NVARCHAR(5), swatch_image NVARCHAR(18), NRF_CODE NVARCHAR(5),REPO_COLOUR NVARCHAR(5), MARK_COLOUR NVARCHAR(20), zzgroup NVARCHAR(5), PRODH2 NVARCHAR(3),PRODH3 NVARCHAR(6),PRODH4 NVARCHAR(11),PRODH5 NVARCHAR(18)",
+                                 ["t_result","SAPAFS.zmatmas_attrib"]),
+                        [],
+                        "SELECT MATERIAL, MATERIAL_NAME, DESCRIPTION, WITHDRAWN_FLAG,STATUS_FLAG, b.zvalue as LOOKBOOK_FLAG, STYLE_ID, STYLE_NAME, CAD_IMAGE, FABRIC_ID, MAIN_RM, FABR_CONT_COD, min(swatch_image) AS swatch_image, NRF_CODE, REPO_COLOUR, MARK_COLOUR, zzgroup, PRODH2, PRODH3, PRODH4, PRODH5 FROM :t_result as a left outer join (SELECT zkey, zvalue from SAPAFS.zmatmas_attrib WHERE zattribute = 'ZZRMCHAR') AS b on a.LOOKBOOK_FLAG = b.zkey GROUP BY MATERIAL, MATERIAL_NAME, DESCRIPTION, WITHDRAWN_FLAG, STATUS_FLAG, b.zvalue, STYLE_ID, STYLE_NAME,CAD_IMAGE, FABRIC_ID, MAIN_RM, FABR_CONT_COD, NRF_CODE,REPO_COLOUR, MARK_COLOUR, zzgroup, PRODH2, PRODH3, PRODH4, PRODH5 ORDER BY CASE WHEN :SORT_FIELD = 'A' THEN CASE :SORT_FIELD WHEN 'MATERIAL' THEN MATERIAL WHEN 'STATUS_FLAG' THEN STATUS_FLAG WHEN 'ZZGROUP' THEN ZZGROUP WHEN 'STYLE_NAME' THEN STYLE_NAME WHEN 'FABRIC_ID' THEN FABRIC_ID WHEN 'PRODH5' THEN PRODH5 END END ASC, CASE WHEN :SORT_FIELD = 'D' THEN CASE :SORT_FIELD WHEN 'MATERIAL' THEN MATERIAL WHEN 'STATUS_FLAG' THEN STATUS_FLAG WHEN 'ZZGROUP' THEN ZZGROUP WHEN 'STYLE_NAME' THEN STYLE_NAME WHEN 'FABRIC_ID' THEN FABRIC_ID WHEN 'PRODH5' THEN PRODH5 END END DESC limit :LIMIT_C offset :OFFSET_C;")
+        s_64 = Statement(64, 5, 1, 1, True, False, 1, 8,
+                         Variable("result_count", "table var", "total_count BIGINT", ["t_result"]), [],
+                         "SELECT count(*) as total_count from :t_result")
+        s_65 = Statement(65, 5, 1, 1, True, False, 27504814, 2392919,
+                        Variable("COMPOSITION", "table var",
+                                 "FABR_CONT_COD NVARCHAR(5), FAB_TEXT NVARCHAR(30), PROZ NVARCHAR(3)",
+                                 ["AT_DGC_COMPOSITION_TABLE","RESULT"]),
+                        [],
+                        "SELECT DISTINCT j_3afcc as FABR_CONT_COD, TEXT as FAB_TEXT, \"PROZ\" FROM AT_DGC_COMPOSITION_TABLE WHERE j_3afcc in (SELECT DISTINCT FABR_CONT_COD FROM :RESULT);")
+        s_66 = Statement(66, 5, 1, 1, True, False, 27504814, 2392919,
+                        Variable("RESULT_SEASON", "table var",
+                                 "MATERIAL NVARCHAR(18), SEASONS NVARCHAR(3)",
+                                 ["AT_DGC_STYLE_FABRIC_SRCH_TABLE","result"]),
+                        [],
+                        "SELECT DISTINCT \"MATNR\" AS MATERIAL, \"J_3ASEAN\" AS SEASONS FROM AT_DGC_STYLE_FABRIC_SRCH_TABLE WHERE \"MATNR\" IN (SELECT DISTINCT \"MATERIAL\" FROM :reult) AND wrkst <> '' and (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean LIKE 'S%' OR j_3asean LIKE 'A%');")
+        s_67 = Statement(67, 5, 1, 1, True, False, 27504814, 2392919,
+                        Variable("STYLE_SEASONS", "table var",
+                                 "STYLE_ID NVARCHAR(48), STYLE_SEASON NVARCHAR(3)",
+                                 ["AT_DGC_STYLE_FABRIC_SRCH_TABLE","RESULT"]),
+                        [],
+                        "SELECT DISTINCT \"WRKST\" AS STYLE_ID, \"J_3ASEAN\" AS STYLE_SEASON FROM AT_DGC_STYLE_FABRIC_SRCH_TABLE WHERE \"WRKST\" IN (SELECT DISTINCT \"STYLE_ID\" FROM :RESULT) AND wrkst <> '' and (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean LIKE 'S%' OR j_3asean LIKE 'A%');")
+        s_68 = Statement(68, 5, 1, 2, True, False, 27504814, 2392919,
+                        Variable("RESULT_SIZES", "table var",
+                                 "MATERIAL NVARCHAR(18), grid_number NVARCHAR(18), from_date NVARCHAR(8), grid_value NVARCHAR(8), order_by NVARCHAR(4), season NVARCHAR(3), collection NVARCHAR(4)",
+                                 ["\"_SYS_BIC\".\"AT_DGC_GRID_SIZES_SEAS_TABLE\"","result"]),
+                        [],
+                        "SELECT DISTINCT matnr as material, j_3apgnr as grid_number, j_3avdat as from_date, j_3astxt as grid_value, j_3alfnr as order_by, j_3asean as season, _afs_collection as collection FROM \"_SYS_BIC\".\"AT_DGC_GRID_SIZES_SEAS_TABLE\" WHERE \"MATNR\" IN (SELECT DISTINCT \"MATERIAL\" FROM :RESULT);")
+        s_69 = Statement(69, 5, 1, 2, True, False, 27504814, 2392919,
+                        Variable("GLOBAL_BUY", "table var",
+                                 "MATERIAL NVARCHAR(18), SEASON NVARCHAR(3), COLLECTION NVARCHAR(4), ZZGLOBBUY NVARCHAR(200)",
+                                 ["\"_SYS_BIC\".\"AT_DGC_GLOBAL_BUY_TABLE\"","RESULT"]),
+                        [],
+                        "SELECT DISTINCT \"MATNR\" AS MATERIAL, \"J_3ASEAN\" AS SEASON, \"_AFS_COLLECTION\" AS COLLECTION, \"ZZGLOBBUY\" AS ZZGLOBBUY FROM \"_SYS_BIC\".\"AT_DGC_GLOBAL_BUY_TABLE\" WHERE \"MATNR\" IN (SELECT DISTINCT \"MATERIAL\" FROM :RESULT) AND wrkst <> '' and (zzlicensee = '' OR zzmfoutlet = '') AND (j_3asean LIKE 'S%' OR j_3asean LIKE 'A%');")
+        self.statements[s_1.id] = s_1
+        self.statements[s_2.id] = s_2
+        self.statements[s_3.id] = s_3
+        self.statements[s_4.id] = s_4
+        self.statements[s_5.id] = s_5
+        self.statements[s_6.id] = s_6
+        self.statements[s_7.id] = s_7
+        self.statements[s_8.id] = s_8
+        self.statements[s_9.id] = s_9
+        self.statements[s_10.id] = s_10
+        self.statements[s_11.id] = s_11
+        self.statements[s_12.id] = s_12
+        self.statements[s_13.id] = s_13
+        self.statements[s_14.id] = s_14
+        self.statements[s_15.id] = s_15
+        self.statements[s_16.id] = s_16
+        self.statements[s_17.id] = s_17
+        self.statements[s_18.id] = s_18
+        self.statements[s_19.id] = s_19
+        self.statements[s_20.id] = s_20
+        self.statements[s_21.id] = s_21
+        self.statements[s_22.id] = s_22
+        self.statements[s_23.id] = s_23
+        self.statements[s_24.id] = s_24
+        self.statements[s_25.id] = s_25
+        self.statements[s_26.id] = s_26
+        self.statements[s_27.id] = s_27
+        self.statements[s_28.id] = s_28
+        self.statements[s_29.id] = s_29
+        self.statements[s_30.id] = s_30
+        self.statements[s_31.id] = s_31
+        self.statements[s_32.id] = s_32
+        self.statements[s_33.id] = s_33
+        self.statements[s_34.id] = s_34
+        self.statements[s_35.id] = s_35
+        self.statements[s_36.id] = s_36
+        self.statements[s_37.id] = s_37
+        self.statements[s_38.id] = s_38
+        self.statements[s_39.id] = s_39
+        self.statements[s_40.id] = s_40
+        self.statements[s_41.id] = s_41
+        self.statements[s_42.id] = s_42
+        self.statements[s_43.id] = s_43
+        self.statements[s_44.id] = s_44
+        self.statements[s_45.id] = s_45
+        self.statements[s_46.id] = s_46
+        self.statements[s_47.id] = s_47
+        self.statements[s_48.id] = s_48
+        self.statements[s_49.id] = s_49
+        self.statements[s_50.id] = s_50
+        self.statements[s_51.id] = s_51
+        self.statements[s_52.id] = s_52
+        self.statements[s_53.id] = s_53
+        self.statements[s_54.id] = s_54
+        self.statements[s_55.id] = s_55
+        self.statements[s_56.id] = s_56
+        self.statements[s_57.id] = s_57
+        self.statements[s_58.id] = s_58
+        self.statements[s_59.id] = s_59
+        self.statements[s_60.id] = s_60
+        self.statements[s_61.id] = s_61
+        self.statements[s_62.id] = s_62
+        self.statements[s_63.id] = s_63
+        self.statements[s_64.id] = s_64
+        self.statements[s_65.id] = s_65
+        self.statements[s_66.id] = s_66
+        self.statements[s_67.id] = s_67
+        self.statements[s_68.id] = s_68
+        self.statements[s_69.id] = s_69
+
+        # estimate_costs_of_statements()
+        for sid in self.statements:
+            stmt = self.statements.get(sid)
+            for csid in self.statements:
+                cstmt = self.statements.get(csid)
+                if stmt.vars.out_var_name in cstmt.vars.in_var_names:
+                    stmt.consumers.append(csid)
+                    cstmt.producers.append(sid)
+
+        # region_id, parent_eb_id, l_count, o_l_count
+        self.control_regions[1] = ControlRegion(1, 1, 1, 1, "SEQ")
+        self.control_regions[2] = ControlRegion(2, 1, 1, 1, "LOOP")
+        self.control_regions[3] = ControlRegion(3, 1, 1, 1, "SEQ")
+        self.control_regions[4] = ControlRegion(4, 1, 1, 1, "LOOP")
+        self.control_regions[5] = ControlRegion(4, 1, 1, 1, "SEQ")
+        for sid in self.statements:
+            self.control_regions.get(self.statements.get(sid).ctrl_reg_id).add_statement(sid)
+        return 69
+
+    def estimate_cost_of_statements(self):
+        for sid in self.bfs_reverse_seq:
+            self.statements.get(sid).estimate_cost(self)
+        # views = list()
+        # replace_vars = list()
+        # for sid in self.statements:
+        #     statement = self.statements.get(sid)
+        #     if statement.is_declarative:
+        #         expr = statement.expr
+        #         if statement.hbt and statement.fed_id != parent_fd:
+        #             expr = expr.replace("  ", " ")
+        #             expr = expr.replace(", ", ",")
+        #             for base_table in statement.base_tables:
+        #                 vir_tab = "vir_" + base_table
+        #                 expr = expr.replace("FROM " + base_table + " ", "FROM " + vir_tab + " ")
+        #                 expr = expr.replace("," + base_table + " ", "," + vir_tab + " ")
+        #                 expr = expr.replace("FROM " + base_table, "FROM " + vir_tab)
+        #                 vir_tab_sql = "CREATE VIRTUAL TABLE " + vir_tab + " AT " + fc.federations[
+        #                     statement.fed_id] + base_table
+        #                 fc.add_to_dropables(parent_fd, vir_tab)
+        #                 fc.execute_query(parent_fd, vir_tab_sql, True)
+        #                 PrintLog.print(vir_tab_sql)
+        #         if len(statement.out_var) > 0:
+        #             expr = "CREATE VIEW " + statement.out_var + "_view AS (" + expr + ")"
+        #             replace_vars.append(statement.out_var)
+        #             fc.add_to_dropables(parent_fd, statement.out_var + "_view")
+        #         views.append(expr)
+        # text = "\n".join(views)
+        # for replace_for in replace_vars:
+        #     text = text.replace(":" + replace_for + " ", replace_for + "_view ")
+        #     text = text.replace(":" + replace_for + ",", replace_for + "_view,")
+        # sqls = text.split("\n")
+        # for sql in sqls:
+        #     if sql.startswith("CREATE"):
+        #         PrintLog.print("Execute: " + sql)
+        #         fc.execute_query(parent_fd, sql, False)
+        # PrintLog.print("\nEstimate costs:")
+        # # costs = dict()
+        # for var_tab in replace_vars:
+        #     view = var_tab + "_view"
+        #     fc.execute_query(parent_fd,
+        #                      "EXPLAIN PLAN SET STATEMENT_NAME = '" + view + "' FOR SELECT * FROM " + view + ";", False)
+        #     query = "SELECT TABLE_SIZE,OUTPUT_SIZE,SUBTREE_COST from EXPLAIN_PLAN_TABLE WHERE STATEMENT_NAME='" + view + "'"
+        #     try:
+        #         res = fc.cursors.get(parent_fd).execute(query)
+        #         for row in res.fetchall():
+        #             PrintLog.print(row)
+        #     except pyhdb.exceptions.Error:
+        #         PrintLog.print("Failed @EB" + str(parent_fd) + ": " + query)
+        #     PrintLog.print()
+        # # PrintLog.print(sqls)
+        # fc.execute_query(parent_fd, "DELETE FROM EXPLAIN_PLAN_TABLE;", True)
+
+    def create_post_order_traversal_sequence(self, root_id):
+        if root_id:
+            root = self.statements.get(root_id)
+            if root.producers:
+                for psid in root.producers:
+                    self.create_post_order_traversal_sequence(psid)
+            if root_id not in self.post_order_seq:
+                self.post_order_seq.append(root_id)
+
+    def create_level_order_traversal_sequence(self, root):
+        # Base Case
+        if root is None:
+            return
+        # Create an empty queue for level order traversal
+        queue = list()
+        # Enqueue Root and initialize height
+        queue.append(root)
+        while len(queue) > 0:
+            # PrintLog.print(queue[0])
+            sid = queue.pop(0)
+            statement = self.statements.get(sid)
+            # Print front of queue and remove it from queue
+            if sid not in self.bfs_reverse_seq:
+                self.bfs_reverse_seq.append(sid)
+            if statement.producers:
+                for psid in statement.producers:
+                    queue.append(psid)
+
+    def construct_simple_execution_block(self, parent_eb, statements_order):
+        tmp_eb_id = parent_eb.id
+        for tmp_stmt_id in statements_order:
+            stmt_target = self.statements.get(tmp_stmt_id)
+            if stmt_target.has_base_tab:
+                if parent_eb.id == stmt_target.eb_id:
+                    tmp_eb_id = stmt_target.fed_id
+                    # tmp_eb_id + 1
+                    stmt_target.eb_id = tmp_eb_id
+                    self.statements[tmp_stmt_id] = stmt_target
+                    parent_eb.remove_statement(tmp_stmt_id)
+                    #print(parent_eb)
+                    if tmp_eb_id not in self.execution_blocks:
+                        #print()
+                        eb = ExecutionBlock(tmp_eb_id, parent_eb.id, stmt_target.fed_id, stmt_target.ctrl_reg_id, stmt_target.size)
+                        self.execution_blocks[tmp_eb_id] = eb
+                        eb.add_new_statement(tmp_stmt_id)
+                        eb.c_ebs.append(parent_eb.id)
+                        eb.cost = eb.get_estimated_cost(self.control_regions, self.statements)
+                    else:
+                        #print(tmp_eb_id)
+                        eb = self.execution_blocks.get(tmp_eb_id)
+                        eb.add_new_statement(tmp_stmt_id)
+                        eb.c_ebs.append(parent_eb.id)
+                        eb.cost = eb.get_estimated_cost(self.control_regions, self.statements)
+                        #print(self.execution_blocks.get(tmp_stmt_id))
+
+    def get_producer_ebs_ids_of_statement(self, stmt_target):
+        ebs = list()
+        if stmt_target.producers:
+            for tmp_stmt_id in stmt_target.producers:
+                eb_id = self.statements.get(tmp_stmt_id).eb_id
+                # if statement and its producer EB in same parent EB
+                if eb_id not in ebs:
+                    ebs.append(eb_id)
+        return ebs
+
+    def get_consumer_ebs_ids_of_statement(self, stmt_target):
+        ebs = list()
+        if stmt_target.consumers:
+            for tmp_stmt_id in stmt_target.consumers:
+                eb_id = self.statements.get(tmp_stmt_id).eb_id
+                # if statement and its consumer EB in same parent EB
+                if eb_id not in ebs:
+                    ebs.append(eb_id)
+        return ebs
+
+    def get_sibling_producer_ebs_ids_of_statement(self, parent_eb, stmt_target):
+        ebs = list()
+        if stmt_target.producers:
+            for tmp_stmt_id in stmt_target.producers:
+                # print(tmp_stmt_id)
+                eb_id = self.statements.get(tmp_stmt_id).eb_id
+                # print("eb: ", eb_id, "tmp: ", tmp_stmt_id)
+                # if statement and its producer EB in same parent EB
+                if parent_eb.id == self.execution_blocks.get(eb_id).parent_id and eb_id != stmt_target.eb_id and eb_id not in ebs:
+                    ebs.append(eb_id)
+        return ebs
+
+    def get_sibling_consumer_ebs_ids_of_statement(self, parent_eb, stmt_target):
+        ebs = list()
+        if stmt_target.consumers:
+            for tmp_stmt_id in stmt_target.consumers:
+                eb_id = self.statements.get(tmp_stmt_id).eb_id
+                # if statement and its consumer EB in same parent EB
+                if parent_eb.id == self.execution_blocks.get(eb_id).parent_id and eb_id not in ebs:
+                    ebs.append(eb_id)
+        return ebs
+
+    def get_sibling_producer_ebs_ids_of_eb(self, parent_eb, eb_target):
+        ebs = list()
+        if eb_target.statements:
+            for tmp_stmt_id in eb_target.statements:
+                tmp_stmt = self.statements.get(tmp_stmt_id)
+                if tmp_stmt.producers:
+                    for prd_sid in tmp_stmt.producers:
+                        prd_stmt = self.statements.get(prd_sid)
+                        eb_id = prd_stmt.eb_id
+                        # if statement and its producer EB in same parent EB
+                        if parent_eb.id == self.execution_blocks.get(
+                                eb_id).parent_id and eb_id != eb_target.id and eb_id not in ebs:
+                            # PrintLog.print("tmp_stmt_id: {0}, prd_sid: {1}, eb_id: {2}".format(tmp_stmt_id, prd_sid, eb_id))
+                            ebs.append(eb_id)
+        return ebs
+
+    def get_sibling_consumer_ebs_ids_of_eb(self, parent_eb, eb_target):
+        ebs = list()
+        if eb_target.statements:
+            for tmp_stmt_id in eb_target.statements:
+                tmp_stmt = self.statements.get(tmp_stmt_id)
+                if tmp_stmt.consumers:
+                    for csm_sid in tmp_stmt.consumers:
+                        csm_stmt = self.statements.get(csm_sid)
+                        eb_id = csm_stmt.eb_id
+                        # if statement and its producer EB in same parent EB
+                        if parent_eb.id == self.execution_blocks.get(
+                                eb_id).parent_id and eb_id != eb_target.id and eb_id not in ebs:
+                            # PrintLog.print("tmp_stmt_id: {0}, prd_sid: {1}, eb_id: {2}".format(tmp_stmt_id, prd_sid, eb_id))
+                            ebs.append(eb_id)
+        return ebs
+
+    def get_execution_block(self, eb_sink_id):
+        # print(eb_sink_id)
+        for eb_id in self.execution_blocks:
+            if eb_id == eb_sink_id:
+                return self.execution_blocks.get(eb_id)
+
+    def update_for_sinked_statement(self, parent_eb, eb_sink, stmt_target):
+        # remove stmt from existing EB and then insert to new
+        parent_eb.remove_statement(stmt_target.id)
+        # update statement with its new EB ID
+        stmt_target.eb_id = eb_sink.id
+        # set the federation node ID of the EB to statement
+        stmt_target.fed_id = eb_sink.fed_id
+        # update statement dictionary
+        self.statements[stmt_target.id] = stmt_target
+        # add sinked statement to EB
+        eb_sink.add_new_statement(stmt_target.id)
+        # update the cost of eb_sink
+        eb_sink.cost = eb_sink.get_estimated_cost(self.control_regions, self.statements)
+        self.estimate_cost_of_statements()
+
+    def update_for_sinked_region(self, parent_eb, eb_sink, region_target):
+        # PrintLog.print(eb_sink.id)
+        for sid in region_target.statements:
+            self.update_for_sinked_statement(parent_eb, eb_sink, self.statements.get(sid))
+            # stmt_target = self.statements.get(sid)
+            # # remove stmt from existing EB and then insert to new
+            # parent_eb.remove_statement(stmt_target.id)
+            # # update statement with its new EB ID
+            # stmt_target.eb_id = eb_sink.id
+            # # set the federation node ID of the EB to statement
+            # stmt_target.fed_id = eb_sink.fed_id
+            # # update statement dictionary
+            # self.statements[stmt_target.id] = stmt_target
+            # # add sinked statement to EB
+            # eb_sink.add_new_statement(stmt_target.id)
+            # # update the cost of eb_sink
+            # eb_sink.cost = eb_sink.get_estimated_cost(self.control_regions, self.statements)
+            # self.estimate_cost_of_statements()
+
+    # def get_cost_for_ebs(self, prd_ebs_ids):
+    #     tr_cost_before_sinking = 0
+    #     # transferred as input & output
+    #     for peb_id in prd_ebs_ids:
+    #         cost = self.execution_blocks.get(peb_id).cost
+    #         # PrintLog.print("get_cost_for_ebs: {0}".format(peb_id))
+    #         # cost = get_cost_for_eb(peb_id)
+    #         tr_cost_before_sinking += cost
+    #     return tr_cost_before_sinking
+
+    def get_copy(self, new_plan_id):
+        new_copy = AugmentedGraph()
+        new_copy.root_st_id = self.root_st_id
+        # new_copy.consumers = copy.deepcopy(self.consumers)
+        # new_copy.producers = copy.deepcopy(self.producers)
+        new_copy.statements = copy.deepcopy(self.statements)
+        new_copy.control_regions = copy.deepcopy(self.control_regions)
+        new_copy.execution_blocks = copy.deepcopy(self.execution_blocks)
+        new_copy.bfs_reverse_seq = copy.deepcopy(self.bfs_reverse_seq)
+        new_copy.post_order_seq = copy.deepcopy(self.post_order_seq)
+        new_copy.id = new_plan_id
+        return new_copy
+
+    def get_tmp_id(self, tmp_stmt_id, prd_eb_id):
+        tmp_id = "S"
+        for sid in self.bfs_reverse_seq:
+            if sid == tmp_stmt_id:
+                return tmp_id + "_s" + str(sid) + "e" + str(prd_eb_id)
+            else:
+                tmp_id += "_s" + str(sid) + "e" + str(self.statements.get(sid).eb_id)
+
+    def rearrange_ebs(self):
+        # for eb_id, eb in self.execution_blocks.items():
+        #     PrintLog.print_log("{0}: {1}".format(eb_id, eb.statements))
+        new_ebs = dict()
+        running_fd = 0
+        running_eb_id = 0
+        for sid, statement in self.statements.items():
+            if running_fd != statement.fed_id:
+                running_fd = statement.fed_id
+                running_eb_id = statement.eb_id
+                # running_eb_id + 1
+                if running_eb_id in new_ebs:
+                    running_eb_id = max(self.execution_blocks, key=int) + 1
+                    self.execution_blocks[running_eb_id] = copy.deepcopy(self.execution_blocks.get(statement.eb_id))
+                    self.execution_blocks.get(running_eb_id).id = running_eb_id
+                new_ebs[running_eb_id] = list()
+            statement.eb_id = running_eb_id
+            self.execution_blocks.get(running_eb_id).fed_id = statement.fed_id
+            new_ebs.get(running_eb_id).append(sid)
+        removable_ebs = list()
+        for eb_id in self.execution_blocks:
+            if eb_id not in new_ebs or not self.execution_blocks.get(eb_id):
+                removable_ebs.append(eb_id)
+            else:
+                self.execution_blocks.get(eb_id).statements = copy.deepcopy(new_ebs.get(eb_id))
+        # PrintLog.print_log(removable_ebs)
+        for eb_id in removable_ebs:
+            del self.execution_blocks[eb_id]
+        removable_ebs.clear()
+        self.scheduled_ebs = list(new_ebs.keys())
+        # PrintLog.print_log(self.scheduled_ebs)
+
+        # PrintLog.print_log(new_ebs)
+        # for eb_id, eb in self.execution_blocks.items():
+        #     PrintLog.print_log("{0}: {1}".format(eb_id, eb.statements))
+        # PrintLog.print_log("\n\nUpdated Plan rearrangement ")
+        # for sid in self.statements:
+        #     PrintLog.print_log(self.statements.get(sid))
+
+    def push_down_imperative(self):
+        removable_ebs = list()
+        sinkable_imperatives = dict()
+        for sid, statement in self.statements.items():
+            if not statement.is_declarative:
+                c_eb_ids = self.get_consumer_ebs_ids_of_statement(statement)
+                if len(c_eb_ids) == 1 and statement.eb_id not in c_eb_ids:
+                    eb = self.execution_blocks.get(statement.eb_id)
+                    # PrintLog.print_log("{0}@eb{2}: {3} {1}".format(sid, c_eb_ids, statement.eb_id, eb.statements))
+                    eb.statements.remove(sid)
+
+                    if not eb.statements:
+                        removable_ebs.append(eb.id)
+                    eb_sink = self.execution_blocks.get(c_eb_ids[0])
+                    statement.fed_id = eb_sink.fed_id
+                    statement.eb_id = eb_sink.id
+                    self.statements[sid] = statement
+                    if eb_sink.id not in sinkable_imperatives:
+                        sinkable_imperatives[eb_sink.id] = list()
+                    sinkable_imperatives.get(eb_sink.id).append(sid)
+        if removable_ebs:
+            # PrintLog.print_log(removable_ebs)
+            for eb_id in removable_ebs:
+                self.scheduled_ebs.remove(eb_id)
+                del self.execution_blocks[eb_id]
+            removable_ebs.clear()
+
+
+        if sinkable_imperatives:
+            for eb_id in sinkable_imperatives:
+                sids = sinkable_imperatives.get(eb_id)
+                if sids:
+                    for sid in reversed(sids):
+                        self.execution_blocks.get(eb_id).statements.insert(0, sid)
+        # for eb_id, eb in self.execution_blocks.items():
+        #     PrintLog.print_log("{0}: {1}".format(eb_id, eb.statements))
+        # PrintLog.print_log("\n\nUpdated Plan push down ")
+        # for sid in self.statements:
+        #     PrintLog.print_log(self.statements.get(sid))
+
+    def merge_ebs(self):
+        # PrintLog.print_log(self.scheduled_ebs)
+        deletable_eb_ids = list()
+        # PrintLog.print_log("\n\nUpdated Plan ")
+        # for sid in self.statements:
+        #     PrintLog.print_log(self.statements.get(sid))
+        # PrintLog.print_log(self.scheduled_ebs)
+        # for eb_id in self.scheduled_ebs:
+        #     eb = self.execution_blocks.get(eb_id)
+        #     if eb:
+        #         PrintLog.print_log("\neb{0}@fn{1}:\n{2}".format(eb.id, eb.fed_id, eb.statements))
+
+        for eb_id, eb in self.execution_blocks.items():
+            eb.update_input_output(self)
+            if eb.c_ebs and len(eb.c_ebs) == 1:
+                c_eb = self.execution_blocks.get(eb.c_ebs[0])
+                if eb.fed_id == c_eb.fed_id:
+                    for sid in reversed(eb.statements):
+                        self.statements.get(sid).eb_id = c_eb.id
+                    # print("Move {0}: {1} to {2}:{3}".format(eb_id, eb.statements, c_eb.id, c_eb.statements))
+                    insert_at = 0
+                    for sid in c_eb.statements:
+                        if self.statements.get(sid).expr.startswith("DECLARE"):
+                            insert_at = insert_at + 1
+                        else:
+                            break
+                    for sid in reversed(eb.statements):
+                        if sid not in c_eb.statements:
+                            c_eb.statements.insert(insert_at, sid)
+                    deletable_eb_ids.append(eb_id)
+        for eb_id in deletable_eb_ids:
+            self.scheduled_ebs.remove(eb_id)
+            del self.execution_blocks[eb_id]
+        deletable_eb_ids.clear()
+        for eb_id, eb in self.execution_blocks.items():
+            eb.update_input_output(self)
+            if eb.p_ebs and len(eb.p_ebs) == 1:
+                p_eb = self.execution_blocks.get(eb.p_ebs[0])
+                if eb.fed_id == p_eb.fed_id:
+                    for sid in eb.statements:
+                        self.statements.get(sid).eb_id = p_eb.id
+                    # print("Append {0}: {1} to {2}:{3}".format(eb_id, eb.statements, p_eb.id, p_eb.statements))
+                    # insert_at = 0
+                    # for sid in c_eb.statements:
+                    #     if self.statements.get(sid).expr.startswith("DECLARE"):
+                    #         insert_at = insert_at + 1
+                    #     else:
+                    #         break
+                    # for sid in reversed(eb.statements):
+                    #     if sid not in c_eb.statements:
+                    #         c_eb.statements.insert(insert_at, sid)
+                    p_eb.statements = p_eb.statements + eb.statements
+                    deletable_eb_ids.append(eb_id)
+        for eb_id in deletable_eb_ids:
+            self.scheduled_ebs.remove(eb_id)
+            del self.execution_blocks[eb_id]
+        for eb_id, eb in self.execution_blocks.items():
+            eb.update_input_output(self)
+        # PrintLog.print_log(self.scheduled_ebs)
+        # for eb_id in self.scheduled_ebs:
+            eb = self.execution_blocks.get(eb_id)
+            # if eb:
+            #     PrintLog.print_log("\neb{0}@fn{1}:\n{2}".format(eb.id, eb.fed_id, eb.statements))
+        # PrintLog.print_log("\n\nUpdated Plan ")
+        # for sid in self.statements:
+        #     PrintLog.print_log(self.statements.get(sid))
+    def plan_normalization(self):
+        self.rearrange_ebs()
+        self.push_down_imperative()
+        self.merge_ebs()
+
